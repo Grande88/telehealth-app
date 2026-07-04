@@ -73,9 +73,33 @@ function FileTextIcon({ className }: { className?: string }) {
   );
 }
 
+import { useAuth } from "../context/AuthContext";
+
+function LogOutIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" x2="9" y1="12" y2="12" />
+    </svg>
+  );
+}
+
 export function Sidebar() {
   const location = useLocation();
   const pathname = location.pathname;
+  const { currentUser, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+  };
+
+  const displayName = currentUser?.displayName || currentUser?.email?.split("@")[0] || "Admin";
+  const userInitials = displayName.charAt(0).toUpperCase();
 
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r border-slate-200 bg-white">
@@ -114,14 +138,23 @@ export function Sidebar() {
       </nav>
 
       <div className="absolute bottom-0 left-0 right-0 border-t border-slate-200 p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-emerald-100 text-sm font-semibold text-emerald-700">
-            A
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-3 overflow-hidden">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-sm font-bold text-emerald-700">
+              {userInitials}
+            </div>
+            <div className="overflow-hidden">
+              <p className="truncate text-sm font-semibold text-slate-800 capitalize">{displayName}</p>
+              <p className="truncate text-xs text-slate-400">{currentUser?.email || "admin@telehealth.com"}</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-medium text-slate-900">Admin</p>
-            <p className="text-xs text-slate-500">admin@telehealth.com</p>
-          </div>
+          <button
+            onClick={handleLogout}
+            title="Log out"
+            className="rounded-lg p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors cursor-pointer shrink-0"
+          >
+            <LogOutIcon />
+          </button>
         </div>
       </div>
     </aside>
