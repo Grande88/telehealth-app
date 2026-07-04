@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { adminHospitalsApi } from "../lib/api";
 import type { Hospital } from "../lib/api";
-import { X, Star, Save, Trash2, Edit2, Plus, Building } from "lucide-react";
+import { X, Star, Save, Trash2, Edit2, Plus, Building, Link, ImageIcon } from "lucide-react";
 
 const PRESET_IMAGES = [
   { label: "Modern Clinic", url: "https://images.unsplash.com/photo-1586773860418-d37222d8fce3?auto=format&fit=crop&q=80&w=800" },
@@ -9,6 +9,8 @@ const PRESET_IMAGES = [
   { label: "Wellness Reception", url: "https://images.unsplash.com/photo-1538108149393-cebb47cbdc12?auto=format&fit=crop&q=80&w=800" },
   { label: "Exterior View", url: "https://images.unsplash.com/photo-1587351021759-3e566b3db4f1?auto=format&fit=crop&q=80&w=800" },
 ];
+
+type ImageMode = "preset" | "url";
 
 export default function Hospitals() {
   const [hospitalsList, setHospitalsList] = useState<Hospital[]>([]);
@@ -23,10 +25,11 @@ export default function Hospitals() {
   const [address, setAddress] = useState("");
   const [description, setDescription] = useState("");
   const [rating, setRating] = useState(5.0);
-  const [image, setImage] = useState(PRESET_IMAGES[0].url);
-  const [customImage, setCustomImage] = useState("");
-  const [useCustomImage, setUseCustomImage] = useState(false);
-  const finalImage = useCustomImage ? customImage : image;
+  const [imageMode, setImageMode] = useState<ImageMode>("preset");
+  const [presetImage, setPresetImage] = useState(PRESET_IMAGES[0].url);
+  const [customUrl, setCustomUrl] = useState("");
+
+  const getFinalImage = () => imageMode === "preset" ? presetImage : customUrl;
 
   // Validation errors
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -47,15 +50,19 @@ export default function Hospitals() {
     loadHospitals();
   }, [loadHospitals]);
     
+  const resetImageState = () => {
+    setImageMode("preset");
+    setPresetImage(PRESET_IMAGES[0].url);
+    setCustomUrl("");
+  };
+
   const handleOpenAdd = () => {
     setEditingHospitalId(null);
     setName("");
     setAddress("");
     setDescription("");
     setRating(5.0);
-    setImage(PRESET_IMAGES[0].url);
-    setCustomImage("");
-    setUseCustomImage(false);
+    resetImageState();
     setErrors({});
     setIsModalOpen(true);
   };
@@ -66,20 +73,19 @@ export default function Hospitals() {
     setAddress(h.address);
     setDescription(h.description);
     setRating(h.rating);
-    
+    resetImageState();
     const isPreset = PRESET_IMAGES.some(p => p.url === h.image);
     if (isPreset) {
-      setImage(h.image);
-      setUseCustomImage(false);
-      setCustomImage("");
+      setImageMode("preset");
+      setPresetImage(h.image);
     } else {
-      setUseCustomImage(true);
-      setCustomImage(h.image);
+      setImageMode("url");
+      setCustomUrl(h.image);
     }
-    
     setErrors({});
     setIsModalOpen(true);
   };
+
 
   const handleOpenDelete = (h: Hospital) => {
     setHospitalToDelete(h);
@@ -105,7 +111,7 @@ export default function Hospitals() {
     if (!name.trim()) newErrors.name = "Hospital name is required";
     if (!address.trim()) newErrors.address = "Address is required";
     if (!description.trim()) newErrors.description = "Description is required";
-    if (useCustomImage && !customImage.trim()) newErrors.image = "Custom image URL is required";
+    if (imageMode === "url" && !customUrl.trim()) newErrors.image = "Image URL is required";
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
@@ -116,7 +122,7 @@ export default function Hospitals() {
       address,
       description,
       rating: Number(rating),
-      image: finalImage,
+      image: getFinalImage(),
     };
 
     try {
@@ -333,70 +339,88 @@ export default function Hospitals() {
 
               {/* Image Picker */}
               <div>
-                <label className="block text-sm font-semibold text-slate-700 mb-1.5">
+                <label className="block text-sm font-semibold text-slate-700 mb-2">
                   Facility Image
                 </label>
-                
-                {/* Mode Select */}
-                <div className="mb-3 flex gap-4 text-xs font-medium">
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={!useCustomImage}
-                      onChange={() => setUseCustomImage(false)}
-                      className="accent-emerald-500"
-                    />
-                    Choose from Presets
-                  </label>
-                  <label className="flex items-center gap-1.5 cursor-pointer">
-                    <input
-                      type="radio"
-                      checked={useCustomImage}
-                      onChange={() => setUseCustomImage(true)}
-                      className="accent-emerald-500"
-                    />
-                    Enter Custom URL
-                  </label>
+
+                {/* Mode Tabs */}
+                <div className="mb-3 flex rounded-lg border border-slate-200 overflow-hidden text-xs font-semibold">
+                  {(["preset", "url"] as ImageMode[]).map((mode) => {
+                    const icons = { preset: <ImageIcon size={13} />, url: <Link size={13} /> };
+                    const labels = { preset: "Presets", url: "URL" };
+                    return (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setImageMode(mode)}
+                        className={`flex flex-1 items-center justify-center gap-1.5 py-2 transition-colors cursor-pointer ${
+                          imageMode === mode
+                            ? "bg-emerald-500 text-white"
+                            : "bg-white text-slate-500 hover:bg-slate-50"
+                        }`}
+                      >
+                        {icons[mode]} {labels[mode]}
+                      </button>
+                    );
+                  })}
                 </div>
 
-                {!useCustomImage ? (
-                  /* Presets grid */
+                {/* Preset Grid */}
+                {imageMode === "preset" && (
                   <div className="grid grid-cols-4 gap-2">
                     {PRESET_IMAGES.map((preset) => (
                       <button
                         key={preset.label}
                         type="button"
-                        onClick={() => setImage(preset.url)}
-                        className={`relative h-14 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                          image === preset.url && !useCustomImage
+                        onClick={() => setPresetImage(preset.url)}
+                        className={`relative h-16 rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                          presetImage === preset.url
                             ? "border-emerald-500 ring-2 ring-emerald-500/20"
                             : "border-slate-200 hover:border-slate-300"
                         }`}
                       >
                         <img src={preset.url} alt={preset.label} className="h-full w-full object-cover" />
-                        <div className="absolute inset-0 bg-slate-900/30 flex items-center justify-center">
-                          <span className="text-[10px] text-white font-semibold text-center leading-none px-1">
+                        <div className="absolute inset-0 bg-slate-900/30 flex items-end justify-center pb-1">
+                          <span className="text-[9px] text-white font-semibold text-center leading-tight px-1">
                             {preset.label}
                           </span>
                         </div>
+                        {presetImage === preset.url && (
+                          <div className="absolute top-1 right-1 h-4 w-4 rounded-full bg-emerald-500 flex items-center justify-center">
+                            <svg className="h-2.5 w-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                        )}
                       </button>
                     ))}
                   </div>
-                ) : (
-                  /* Custom URL Input */
-                  <div>
+                )}
+
+                {/* Custom URL */}
+                {imageMode === "url" && (
+                  <div className="space-y-2">
                     <input
                       type="text"
-                      value={customImage}
-                      onChange={(e) => setCustomImage(e.target.value)}
-                      placeholder="https://images.unsplash.com/... or other URL"
+                      value={customUrl}
+                      onChange={(e) => setCustomUrl(e.target.value)}
+                      placeholder="https://example.com/hospital-image.jpg"
                       className={`w-full rounded-lg border p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
-                        errors.image ? "border-red-300 focus:ring-red-500/20 focus:border-red-500" : "border-slate-200"
+                        errors.image ? "border-red-300" : "border-slate-200"
                       }`}
                     />
-                    {errors.image && <p className="mt-1 text-xs font-semibold text-red-500">{errors.image}</p>}
+                    {customUrl && (
+                      <img
+                        src={customUrl}
+                        alt="Preview"
+                        className="h-28 w-full rounded-lg object-cover border border-slate-200"
+                        onError={(e) => (e.currentTarget.style.display = "none")}
+                      />
+                    )}
                   </div>
                 )}
+
+                {errors.image && <p className="mt-1.5 text-xs font-semibold text-red-500">{errors.image}</p>}
               </div>
 
               {/* Form Footer Action Buttons */}
